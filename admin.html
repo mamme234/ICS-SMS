@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICS Addis - Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="ics-header">
+    <div class="container">
+        <div class="logo">
+            <h1>🏫 ICS Addis</h1>
+            <span>Admin Dashboard</span>
+        </div>
+        <div class="user-info">
+            <span class="badge-sms"><i class="fas fa-sms"></i> Live</span>
+            <span class="avatar">👑</span>
+            <a href="index.html" class="btn btn-outline btn-sm"><i class="fas fa-home"></i> Home</a>
+        </div>
+    </div>
+</header>
+
+<main class="container" style="padding: 30px 20px;">
+    <div id="alertContainer"></div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 25px;">
+        <div>
+            <h2>👑 Admin Panel</h2>
+            <p style="color: #64748b;">Full control of ICS Addis School Management System</p>
+        </div>
+        <div>
+            <button class="btn btn-success" onclick="seedDatabase()"><i class="fas fa-database"></i> Seed Demo Data</button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid-4" id="adminStats">
+        <div class="stat-box"><div class="icon"><i class="fas fa-user-graduate"></i></div><div class="number" id="statStudents">-</div><div class="label">Students</div></div>
+        <div class="stat-box"><div class="icon"><i class="fas fa-users"></i></div><div class="number" id="statUsers">-</div><div class="label">Users</div></div>
+        <div class="stat-box"><div class="icon"><i class="fas fa-sms"></i></div><div class="number" id="statMessages">-</div><div class="label">Total Messages</div></div>
+        <div class="stat-box"><div class="icon"><i class="fas fa-clock"></i></div><div class="number" id="statToday">-</div><div class="label">Today's Messages</div></div>
+    </div>
+
+    <!-- Admin SMS Broadcast -->
+    <div class="card" style="margin-bottom: 30px;">
+        <div class="card-title"><i class="fas fa-bullhorn"></i> Broadcast SMS</div>
+        <div class="sms-compose">
+            <select id="adminRecipient">
+                <option value="all">📨 All Users</option>
+                <option value="parent">👪 All Parents</option>
+                <option value="teacher">👨‍🏫 All Teachers</option>
+                <option value="student">🎓 All Students</option>
+                <option value="admin">👑 Administrators</option>
+            </select>
+            <textarea id="adminMessage" rows="3" placeholder="Type your broadcast message...">[ICS Addis] Important: School will be closed on Friday for a staff development day. Classes resume Monday.</textarea>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-success" onclick="sendAdminBroadcast()"><i class="fas fa-paper-plane"></i> Send Broadcast</button>
+                <button class="btn btn-outline" onclick="useTemplate('closure')"><i class="fas fa-copy"></i> Use Template</button>
+            </div>
+        </div>
+        <div id="adminMessageStatus" style="display:none;" class="alert"></div>
+    </div>
+
+    <!-- Student List -->
+    <div class="card" style="margin-bottom: 30px;">
+        <div class="card-title"><i class="fas fa-list"></i> All Students</div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Grade</th>
+                        <th>Parent</th>
+                        <th>Attendance</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="adminStudentTable">
+                    <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Preserved ICS Content -->
+    <div class="ics-legacy">
+        <h2 class="section-title">School Experience</h2>
+        <div class="grid-4">
+            <div class="legacy-item"><i class="fas fa-book-open"></i><h4>Learning</h4><p>IB programmes: PYP, MYP, DP, CP</p></div>
+            <div class="legacy-item"><i class="fas fa-running"></i><h4>Activities</h4><p>Athletics, arts, service & more</p></div>
+            <div class="legacy-item"><i class="fas fa-users"></i><h4>Community</h4><p>80+ nationalities. PTO, volunteering</p></div>
+            <div class="legacy-item"><i class="fas fa-school"></i><h4>Campus</h4><p>15-acre oasis with gardens & tortoises</p></div>
+        </div>
+    </div>
+</main>
+
+<footer class="ics-footer">
+    <div class="container">
+        <p>&copy; 2026 <strong>ICS Addis</strong> · <a href="index.html">Home</a> · <a href="student.html">Student</a> · <a href="teacher.html">Teacher</a></p>
+    </div>
+</footer>
+
+<script src="js/app.js"></script>
+<script>
+    async function loadAdminData() {
+        try {
+            // Stats
+            const stats = await loadStats();
+            if (stats) {
+                document.getElementById('statStudents').textContent = stats.students;
+                document.getElementById('statUsers').textContent = stats.users;
+                document.getElementById('statMessages').textContent = stats.messages;
+                document.getElementById('statToday').textContent = stats.todayMessages;
+            }
+
+            // Students
+            const students = await loadStudents();
+            const table = document.getElementById('adminStudentTable');
+            if (!students || students.length === 0) {
+                table.innerHTML = '<tr><td colspan="6" style="text-align:center;">No students found</td></tr>';
+                return;
+            }
+
+            table.innerHTML = students.map(s => {
+                const total = s.attendance?.length || 0;
+                const present = s.attendance?.filter(a => a.status === 'present').length || 0;
+                return `
+                    <tr>
+                        <td>${s.studentId}</td>
+                        <td><strong>${s.name}</strong></td>
+                        <td>${s.grade}</td>
+                        <td>${s.parentName || 'N/A'}</td>
+                        <td>${total > 0 ? `${Math.round((present/total)*100)}%` : 'N/A'}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" onclick="showStudentDetail('${s.studentId}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function sendAdminBroadcast() {
+        const content = document.getElementById('adminMessage').value;
+        const recipient = document.getElementById('adminRecipient').value;
+        const statusDiv = document.getElementById('adminMessageStatus');
+
+        if (!content.trim()) {
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'alert alert-danger';
+            statusDiv.textContent = '⚠️ Please enter a message.';
+            return;
+        }
+
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'alert alert-info';
+        statusDiv.textContent = '📤 Sending broadcast...';
+
+        const result = await sendMessage(recipient, content, 'ICS Administration');
+        
+        if (result && result.success) {
+            statusDiv.className = 'alert alert-success';
+            statusDiv.textContent = `✅ ${result.message}`;
+            document.getElementById('adminMessage').value = '';
+            await loadAdminData();
+        } else {
+            statusDiv.className = 'alert alert-danger';
+            statusDiv.textContent = `❌ ${result?.error || 'Failed to send'}`;
+        }
+
+        setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
+    }
+
+    function useTemplate(type) {
+        const templates = {
+            closure: '[ICS Addis] Important: School will be closed on [DATE] for staff development. Classes resume [DATE].',
+            event: '[ICS Addis] Reminder: [EVENT] at [TIME] on [DATE]. All students must attend.',
+            absent: '[ICS Addis] This is a notification that your child was marked absent today. Please contact the office.',
+            fee: '[ICS Addis] Reminder: School fees for Term [TERM] are due by [DATE].'
+        };
+        document.getElementById('adminMessage').value = templates[type] || '';
+    }
+
+    function showStudentDetail(studentId) {
+        window.location.href = `student.html?student=${studentId}`;
+    }
+
+    async function seedDatabase() {
+        if (!confirm('This will reset all data. Continue?')) return;
+        
+        try {
+            const response = await fetch('/api/seed', { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                showAlert('✅ Database seeded successfully!', 'success');
+                await loadAdminData();
+            } else {
+                showAlert('❌ Seed failed: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            showAlert('❌ Error: ' + error.message, 'danger');
+        }
+    }
+
+    // Load on page load
+    loadAdminData();
+</script>
+</body>
+  </html>
