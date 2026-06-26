@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICS Addis - Teacher Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="ics-header">
+    <div class="container">
+        <div class="logo">
+            <h1>🏫 ICS Addis</h1>
+            <span>Teacher Portal</span>
+        </div>
+        <div class="user-info">
+            <span class="badge-sms"><i class="fas fa-sms"></i> Live</span>
+            <span class="avatar">👨‍🏫</span>
+            <a href="index.html" class="btn btn-outline btn-sm"><i class="fas fa-home"></i> Home</a>
+        </div>
+    </div>
+</header>
+
+<main class="container" style="padding: 30px 20px;">
+    <div id="alertContainer"></div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 25px;">
+        <div>
+            <h2>👨‍🏫 Welcome, <strong>Mr. Smith</strong></h2>
+            <p style="color: #64748b;">Grade 5A · Mathematics · 24 Students</p>
+        </div>
+        <div>
+            <span class="badge badge-success"><i class="fas fa-check-circle"></i> 12 Present Today</span>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid-3" style="margin-bottom: 30px;">
+        <div class="stat-box">
+            <div class="icon"><i class="fas fa-user-graduate"></i></div>
+            <div class="number">24</div>
+            <div class="label">Total Students</div>
+        </div>
+        <div class="stat-box">
+            <div class="icon"><i class="fas fa-clock"></i></div>
+            <div class="number" id="presentCount">12</div>
+            <div class="label">Present Today</div>
+        </div>
+        <div class="stat-box">
+            <div class="icon"><i class="fas fa-sms"></i></div>
+            <div class="number" id="smsCount">0</div>
+            <div class="label">SMS Sent Today</div>
+        </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="card" style="margin-bottom: 30px;">
+        <div class="card-title"><i class="fas fa-clipboard-list"></i> Today's Attendance</div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceTable">
+                    <tr><td colspan="4" style="text-align:center;">Loading students...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-success" onclick="markAllPresent()"><i class="fas fa-check"></i> Mark All Present</button>
+            <button class="btn btn-primary" onclick="sendClassAnnouncement()"><i class="fas fa-bullhorn"></i> Announcement to Parents</button>
+        </div>
+    </div>
+
+    <!-- SMS Quick Send -->
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-title"><i class="fas fa-sms"></i> Quick SMS</div>
+            <div class="sms-compose">
+                <select id="teacherRecipient">
+                    <option value="parent">All Parents (Grade 5A)</option>
+                    <option value="all">All Parents (School-wide)</option>
+                    <option value="admin">Administration</option>
+                </select>
+                <textarea id="teacherMessage" placeholder="Type your message...">[ICS] Reminder: Math test tomorrow. Please review Chapter 5.</textarea>
+                <button class="btn btn-success btn-block" onclick="sendTeacherMessage()">
+                    <i class="fas fa-paper-plane"></i> Send SMS
+                </button>
+            </div>
+            <div id="teacherMessageStatus" style="display:none;" class="alert"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><i class="fas fa-history"></i> Recent Activity</div>
+            <div id="teacherActivity">
+                <div style="color:#94a3b8; text-align:center; padding:20px;">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preserved ICS Content -->
+    <div class="ics-legacy">
+        <h2 class="section-title">School Experience</h2>
+        <div class="grid-4">
+            <div class="legacy-item"><i class="fas fa-book-open"></i><h4>Learning</h4><p>IB programmes: PYP, MYP, DP, CP</p></div>
+            <div class="legacy-item"><i class="fas fa-running"></i><h4>Activities</h4><p>Athletics, arts, service & more</p></div>
+            <div class="legacy-item"><i class="fas fa-users"></i><h4>Community</h4><p>80+ nationalities. PTO, volunteering</p></div>
+            <div class="legacy-item"><i class="fas fa-school"></i><h4>Campus</h4><p>15-acre oasis with gardens & tortoises</p></div>
+        </div>
+    </div>
+</main>
+
+<footer class="ics-footer">
+    <div class="container">
+        <p>&copy; 2026 <strong>ICS Addis</strong> · <a href="index.html">Home</a> · <a href="student.html">Student</a> · <a href="admin.html">Admin</a></p>
+    </div>
+</footer>
+
+<script src="js/app.js"></script>
+<script>
+    const STUDENTS = ['ICS-2024-001', 'ICS-2024-002'];
+    let currentAttendance = {};
+
+    async function loadTeacherData() {
+        try {
+            const students = await loadStudents();
+            const table = document.getElementById('attendanceTable');
+            
+            if (!students || students.length === 0) {
+                table.innerHTML = '<tr><td colspan="4" style="text-align:center;">No students found</td></tr>';
+                return;
+            }
+
+            // Filter for teacher's class (Grade 5A in demo)
+            const classStudents = students.filter(s => s.grade === '5B' || s.grade === '11A');
+            
+            if (classStudents.length === 0) {
+                table.innerHTML = '<tr><td colspan="4" style="text-align:center;">No students in your class</td></tr>';
+                return;
+            }
+
+            table.innerHTML = classStudents.map(s => {
+                const today = new Date().toDateString();
+                const todayRecord = s.attendance?.find(a => new Date(a.date).toDateString() === today);
+                const status = todayRecord?.status || 'unmarked';
+                currentAttendance[s.studentId] = status;
+                return `
+                    <tr>
+                        <td>${s.studentId}</td>
+                        <td><strong>${s.name}</strong></td>
+                        <td id="status-${s.studentId}">${getStatusBadge(status)}</td>
+                        <td>
+                            <select id="select-${s.studentId}" class="attendance-select" style="padding:5px 10px; border-radius:8px; border:1px solid #e2e8f0;">
+                                <option value="present" ${status === 'present' ? 'selected' : ''}>Present</option>
+                                <option value="absent" ${status === 'absent' ? 'selected' : ''}>Absent</option>
+                                <option value="late" ${status === 'late' ? 'selected' : ''}>Late</option>
+                                <option value="excused" ${status === 'excused' ? 'selected' : ''}>Excused</option>
+                            </select>
+                            <button class="btn btn-primary btn-sm" onclick="markStudent('${s.studentId}')" style="margin-left:5px;">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Update present count
+            const present = Object.values(currentAttendance).filter(v => v === 'present').length;
+            document.getElementById('presentCount').textContent = present;
+
+            // Load messages
+            await loadTeacherMessages();
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function markStudent(studentId) {
+        const select = document.getElementById(`select-${studentId}`);
+        const status = select.value;
+        
+        const result = await markAttendance(studentId, status, 'Marked by teacher');
+        
+        if (result && result.success) {
+            const statusCell = document.getElementById(`status-${studentId}`);
+            statusCell.innerHTML = getStatusBadge(status);
+            currentAttendance[studentId] = status;
+            
+            // Update count
+            const present = Object.values(currentAttendance).filter(v => v === 'present').length;
+            document.getElementById('presentCount').textContent = present;
+
+            showAlert(`✅ ${result.message}`, 'success');
+            
+            // Reload messages to show auto-SMS
+            await loadTeacherMessages();
+        } else {
+            showAlert(`❌ ${result?.error || 'Failed to mark attendance'}`, 'danger');
+        }
+    }
+
+    async function markAllPresent() {
+        const selects = document.querySelectorAll('.attendance-select');
+        for (const select of selects) {
+            select.value = 'present';
+            const studentId = select.id.replace('select-', '');
+            await markStudent(studentId);
+        }
+        showAlert('✅ All students marked present', 'success');
+    }
+
+    async function loadTeacherMessages() {
+        try {
+            const messages = await loadMessages();
+            const container = document.getElementById('teacherActivity');
+            if (messages.length === 0) {
+                container.innerHTML = '<div style="color:#94a3b8; text-align:center; padding:20px;">No recent activity</div>';
+                return;
+            }
+            container.innerHTML = messages.slice(0,5).map(msg => `
+                <div style="padding:10px 0; border-bottom:1px solid #f8fafc;">
+                    <div style="font-size:0.9rem;">📨 ${msg.content.replace(/<[^>]*>/g, '').substring(0, 60)}${msg.content.length > 60 ? '...' : ''}</div>
+                    <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">
+                        ${formatDate(msg.sentAt)} · <span class="badge badge-success">${msg.status}</span>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    }
+
+    async function sendTeacherMessage() {
+        const content = document.getElementById('teacherMessage').value;
+        const recipient = document.getElementById('teacherRecipient').value;
+        const statusDiv = document.getElementById('teacherMessageStatus');
+
+        if (!content.trim()) {
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'alert alert-danger';
+            statusDiv.textContent = '⚠️ Please enter a message.';
+            return;
+        }
+
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'alert alert-info';
+        statusDiv.textContent = '📤 Sending...';
+
+        const result = await sendMessage(recipient, content, 'Mr. Smith (Teacher)');
+        
+        if (result && result.success) {
+            statusDiv.className = 'alert alert-success';
+            statusDiv.textContent = `✅ ${result.message}`;
+            document.getElementById('teacherMessage').value = '';
+            await loadTeacherMessages();
+        } else {
+            statusDiv.className = 'alert alert-danger';
+            statusDiv.textContent = `❌ ${result?.error || 'Failed to send'}`;
+        }
+
+        setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
+    }
+
+    async function sendClassAnnouncement() {
+        const content = `📢 <b>Announcement for Grade 5A Parents</b>\n\nPlease ensure your child brings their math textbook tomorrow. We will have a review session.\n\n— Mr. Smith`;
+        const result = await sendMessage('parent', content, 'Mr. Smith');
+        if (result && result.success) {
+            showAlert(`✅ Announcement sent to all parents`, 'success');
+            await loadTeacherMessages();
+        } else {
+            showAlert(`❌ Failed to send announcement`, 'danger');
+        }
+    }
+
+    // Load on page load
+    loadTeacherData();
+</script>
+</body>
+                          </html>
