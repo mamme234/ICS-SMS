@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICS Addis - Student Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="ics-header">
+    <div class="container">
+        <div class="logo">
+            <h1>🏫 ICS Addis</h1>
+            <span>Student Portal</span>
+        </div>
+        <div class="user-info">
+            <span class="badge-sms"><i class="fas fa-sms"></i> Live</span>
+            <span class="avatar" id="userAvatar">S</span>
+            <a href="index.html" class="btn btn-outline btn-sm"><i class="fas fa-home"></i> Home</a>
+        </div>
+    </div>
+</header>
+
+<main class="container" style="padding: 30px 20px;">
+    <div id="alertContainer"></div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 25px;">
+        <div>
+            <h2 id="greeting">👋 Hello, <strong>Loading...</strong></h2>
+            <p style="color: #64748b;" id="studentInfo">Loading student data...</p>
+        </div>
+        <div>
+            <span class="badge badge-success"><i class="fas fa-check-circle"></i> Connected</span>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- Profile -->
+        <aside class="card profile-card">
+            <div class="student-photo"><i class="fas fa-user-graduate"></i></div>
+            <h3 id="studentName">Loading...</h3>
+            <p class="grade" id="studentGrade">Grade: Loading...</p>
+            <div class="detail-item">
+                <span class="label"><i class="far fa-calendar-alt"></i> DOB</span>
+                <span class="value" id="studentDob">-</span>
+            </div>
+            <div class="detail-item">
+                <span class="label"><i class="fas fa-phone"></i> Parent SMS</span>
+                <span class="value" id="parentPhone">-</span>
+            </div>
+            <div class="detail-item">
+                <span class="label"><i class="fas fa-id-card"></i> Student ID</span>
+                <span class="value" id="studentId">-</span>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary btn-sm"><i class="fas fa-qrcode"></i> QR ID</button>
+                <button class="btn btn-outline btn-sm"><i class="fas fa-download"></i> Report</button>
+            </div>
+            <div id="attendanceStats" style="margin-top: 20px; background: #f8fafc; padding: 15px; border-radius: 12px;">
+                <div class="loader"></div>
+            </div>
+        </aside>
+
+        <!-- SMS Panel -->
+        <section class="card">
+            <div class="card-title"><i class="fas fa-sms"></i> SMS Center</div>
+            
+            <div class="sms-compose">
+                <select id="recipientSelect">
+                    <option value="parent">👪 My Parents</option>
+                    <option value="teacher">👨‍🏫 My Teacher</option>
+                    <option value="all">📨 All Parents</option>
+                    <option value="admin">🏫 Administration</option>
+                </select>
+                <textarea id="messageInput" placeholder="Type your message here...">[ICS] Hi, I need clarification on the assignment due date. Thanks!</textarea>
+                <button class="btn btn-success btn-block" onclick="sendStudentMessage()">
+                    <i class="fas fa-paper-plane"></i> Send via Telegram
+                </button>
+            </div>
+
+            <div id="messageStatus" style="display:none;" class="alert"></div>
+
+            <div style="margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 15px;">
+                <h4>📩 Recent Messages</h4>
+                <div id="messageHistory">
+                    <div style="color: #94a3b8; text-align: center; padding: 10px;">Loading messages...</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Preserved ICS Content -->
+    <div class="ics-legacy">
+        <h2 class="section-title">Our School Experience</h2>
+        <div class="grid-4">
+            <div class="legacy-item"><i class="fas fa-book-open"></i><h4>Learning</h4><p>IB programmes: PYP, MYP, DP, CP</p></div>
+            <div class="legacy-item"><i class="fas fa-running"></i><h4>Activities</h4><p>Athletics, arts, service & more</p></div>
+            <div class="legacy-item"><i class="fas fa-users"></i><h4>Community</h4><p>80+ nationalities. PTO, volunteering</p></div>
+            <div class="legacy-item"><i class="fas fa-school"></i><h4>Campus</h4><p>15-acre oasis with gardens & tortoises</p></div>
+        </div>
+    </div>
+</main>
+
+<footer class="ics-footer">
+    <div class="container">
+        <p>&copy; 2026 <strong>ICS Addis</strong> · <a href="index.html">Home</a> · <a href="teacher.html">Teacher</a> · <a href="admin.html">Admin</a></p>
+    </div>
+</footer>
+
+<script src="js/app.js"></script>
+<script>
+    const STUDENT_ID = 'ICS-2024-001';
+
+    async function loadStudentData() {
+        try {
+            const student = await loadStudent(STUDENT_ID);
+            if (!student) {
+                document.getElementById('greeting').innerHTML = '❌ Student not found';
+                return;
+            }
+
+            document.getElementById('greeting').innerHTML = `👋 Hello, <strong>${student.name}</strong>`;
+            document.getElementById('studentName').textContent = student.name;
+            document.getElementById('studentGrade').textContent = `Grade: ${student.grade}`;
+            document.getElementById('studentId').textContent = student.studentId;
+            document.getElementById('studentDob').textContent = student.dob || 'Not set';
+            document.getElementById('parentPhone').textContent = student.parentPhone || 'Not set';
+            document.getElementById('userAvatar').textContent = student.name.charAt(0);
+
+            // Attendance
+            const attendance = student.attendance || [];
+            const present = attendance.filter(a => a.status === 'present').length;
+            const total = attendance.length || 1;
+            const percentage = Math.round((present / total) * 100);
+            
+            document.getElementById('attendanceStats').innerHTML = `
+                <strong>📊 Attendance Rate</strong>
+                <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                    <span>Present: ${present}</span>
+                    <span>Absent: ${attendance.filter(a => a.status === 'absent').length}</span>
+                    <span>${percentage}%</span>
+                </div>
+                <div style="background:#e2e8f0; height:8px; border-radius:10px; margin-top:8px;">
+                    <div style="background:#22c55e; height:8px; border-radius:10px; width:${percentage}%;"></div>
+                </div>
+                <div style="margin-top:12px; font-size:0.85rem; color:#64748b;">
+                    Last 7 days: ${attendance.slice(-3).map(a => `${a.status} (${new Date(a.date).toLocaleDateString()})`).join(', ') || 'No records'}
+                </div>
+            `;
+
+            await loadStudentMessages();
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('greeting').innerHTML = '❌ Error loading data';
+        }
+    }
+
+    async function loadStudentMessages() {
+        try {
+            const messages = await loadMessages();
+            const container = document.getElementById('messageHistory');
+            if (messages.length === 0) {
+                container.innerHTML = '<div style="color:#94a3b8; text-align:center; padding:10px;">No messages yet</div>';
+                return;
+            }
+            container.innerHTML = messages.slice(0,5).map(msg => `
+                <div style="padding:10px 0; border-bottom:1px solid #f8fafc;">
+                    <div style="font-size:0.9rem;">${msg.content.replace(/<[^>]*>/g, '').substring(0, 80)}${msg.content.length > 80 ? '...' : ''}</div>
+                    <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">
+                        📅 ${formatDate(msg.sentAt)} · <span class="badge badge-success">${msg.status}</span>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    }
+
+    async function sendStudentMessage() {
+        const content = document.getElementById('messageInput').value;
+        const recipient = document.getElementById('recipientSelect').value;
+        const statusDiv = document.getElementById('messageStatus');
+
+        if (!content.trim()) {
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'alert alert-danger';
+            statusDiv.textContent = '⚠️ Please enter a message.';
+            return;
+        }
+
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'alert alert-info';
+        statusDiv.textContent = '📤 Sending...';
+
+        const result = await sendMessage(recipient, content, 'Student');
+        
+        if (result && result.success) {
+            statusDiv.className = 'alert alert-success';
+            statusDiv.textContent = `✅ ${result.message}`;
+            document.getElementById('messageInput').value = '';
+            await loadStudentMessages();
+        } else {
+            statusDiv.className = 'alert alert-danger';
+            statusDiv.textContent = `❌ ${result?.error || 'Failed to send'}`;
+        }
+
+        setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
+    }
+
+    // Load on page load
+    loadStudentData();
+</script>
+</body>
+  </html>
